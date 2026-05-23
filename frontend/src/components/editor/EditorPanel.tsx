@@ -5,6 +5,7 @@ import useSWR, { mutate } from "swr"
 import type { JSONContent } from "@tiptap/react"
 import { api } from "@/lib/api"
 import { useStore } from "@/lib/store"
+import { useCanEdit } from "@/contexts/AuthContext"
 import { SimpleEditor } from "@/components/tiptap-templates/simple/simple-editor"
 import type { Page } from "@/types"
 
@@ -12,12 +13,13 @@ function pageKey(id: string) { return `page:${id}` }
 
 export function EditorPanel() {
   const { activePage, setActivePage } = useStore()
+  const canEdit = useCanEdit()
+
   const { data: page } = useSWR<Page>(
     activePage ? pageKey(activePage) : null,
     () => api.pages.get(activePage!)
   )
 
-  // Build Tiptap JSON doc from stored blocks
   const initialContent: JSONContent | undefined = page
     ? {
         type: "doc",
@@ -29,7 +31,7 @@ export function EditorPanel() {
 
   const handleUpdate = useCallback(
     async (json: JSONContent) => {
-      if (!activePage) return
+      if (!activePage || !canEdit) return
       const blocks = (json.content ?? []).map((node, i) => ({
         type: node.type ?? "paragraph",
         content: node,
@@ -39,52 +41,41 @@ export function EditorPanel() {
       mutate(pageKey(activePage))
       mutate("pages")
     },
-    [activePage]
+    [activePage, canEdit]
   )
 
   const handleTitleBlur = useCallback(
     async (e: React.FocusEvent<HTMLHeadingElement>) => {
-      if (!activePage) return
+      if (!activePage || !canEdit) return
       const newTitle = e.currentTarget.textContent?.trim() ?? "Untitled"
       await api.pages.update(activePage, { title: newTitle })
       mutate(pageKey(activePage))
       mutate("pages")
     },
-    [activePage]
+    [activePage, canEdit]
   )
 
   if (!activePage) {
     return (
-      <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
-        Select a page or create one to start.
+      <div className="editor-empty-state">
+        <p className="editor-empty-hint">Open a page from the menu above, or create one to start.</p>
       </div>
     )
   }
 
-  return (
-    <div className="flex flex-1 flex-col overflow-hidden">
-      {/* Page title */}
-      <div className="px-16 pt-12 pb-4 max-w-3xl mx-auto w-full">
-        <h1
-          contentEditable
-          suppressContentEditableWarning
-          onBlur={handleTitleBlur}
-          className="text-4xl font-bold outline-none text-foreground empty:before:content-['Untitled'] empty:before:text-muted-foreground/50"
-          key={activePage}
-        >
-          {page?.title ?? ""}
-        </h1>
-      </div>
+  if (!initialContent) {
+    return <div className="editor-empty-state" />
+  }
 
-      {/* Tiptap Simple Editor */}
-      {initialContent && (
-        <SimpleEditor
-          key={activePage}
-          initialContent={initialContent}
-          onUpdate={handleUpdate}
-          onNavigate={setActivePage}
-        />
-      )}
-    </div>
+  return (
+    <SimpleEditor
+      key={activePage}
+      initialContent={initialContent}
+      onUpdate={canEdit ? handleUpdate : undefined}
+      onNavigate={setActivePage}
+      title={page?.title ?? ""}
+      onTitleBlur={canEdit ? handleTitleBlur : undefined}
+      editable={canEdit}
+    />
   )
 }

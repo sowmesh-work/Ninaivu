@@ -25,7 +25,7 @@ export function Sidebar() {
   }
 
   return (
-    <aside className="w-64 flex flex-col border-r border-border bg-muted/30 shrink-0">
+    <aside className="ninaivu-sidebar w-64 flex flex-col border-r border-border bg-muted/30 shrink-0">
       {/* Header */}
       <div className="flex items-center gap-2 px-4 py-4 border-b border-border">
         <Brain className="w-5 h-5 text-primary" />
@@ -49,7 +49,7 @@ export function Sidebar() {
       <div className="px-3 pb-1">
         <button
           onClick={handleNewPage}
-          className="flex items-center gap-2 w-full px-3 py-1.5 rounded-md text-sm text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors"
+          className="muted"
         >
           <Plus className="w-3.5 h-3.5" />
           New page
@@ -66,11 +66,7 @@ export function Sidebar() {
           <button
             key={page.id}
             onClick={() => setActivePage(page.id)}
-            className={`flex w-full items-center gap-2 px-3 py-1.5 rounded-md text-sm transition-colors text-left truncate ${
-              activePage === page.id
-                ? "bg-primary/10 text-primary font-medium"
-                : "text-foreground hover:bg-accent hover:text-accent-foreground"
-            }`}
+            className={activePage === page.id ? "active" : ""}
           >
             <span className="truncate">{page.title || "Untitled"}</span>
           </button>

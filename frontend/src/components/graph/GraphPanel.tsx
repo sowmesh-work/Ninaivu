@@ -43,7 +43,7 @@ export function GraphPanel({ pageId }: Props) {
               <li key={bl.id}>
                 <button
                   onClick={() => setActivePage(bl.id)}
-                  className="text-sm text-primary hover:underline text-left truncate w-full"
+                  style={{ all: "unset", boxSizing: "border-box", display: "block", cursor: "pointer", fontSize: "0.875rem", color: "hsl(var(--primary))", width: "100%", padding: "2px 0", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
                 >
                   {bl.title}
                 </button>

@@ -57,8 +57,6 @@ import { LinkIcon } from "@/components/tiptap-icons/link-icon"
 import { useIsBreakpoint } from "@/hooks/use-is-breakpoint"
 import { useWindowSize } from "@/hooks/use-window-size"
 import { useCursorVisibility } from "@/hooks/use-cursor-visibility"
-// --- Components ---
-import { ThemeToggle } from "@/components/tiptap-templates/simple/theme-toggle"
 // --- Lib ---
 import { handleImageUpload, MAX_FILE_SIZE } from "@/lib/tiptap-utils"
 // --- Wiki link ---
@@ -68,7 +66,7 @@ import "tippy.js/dist/tippy.css"
 // --- Styles ---
 import "@/components/tiptap-templates/simple/simple-editor.scss"
 
-// ── Toolbar content ───────────────────────────────────────────────────────────
+// ── Toolbar ───────────────────────────────────────────────────────────────────
 
 const MainToolbarContent = ({
   onHighlighterClick,
@@ -78,62 +76,52 @@ const MainToolbarContent = ({
   onHighlighterClick: () => void
   onLinkClick: () => void
   isMobile: boolean
-}) => {
-  return (
-    <>
-      <Spacer />
-      <ToolbarGroup>
-        <UndoRedoButton action="undo" />
-        <UndoRedoButton action="redo" />
-      </ToolbarGroup>
-      <ToolbarSeparator />
-      <ToolbarGroup>
-        <HeadingDropdownMenu modal={false} levels={[1, 2, 3, 4]} />
-        <ListDropdownMenu
-          modal={false}
-          types={["bulletList", "orderedList", "taskList"]}
-        />
-        <BlockquoteButton />
-        <CodeBlockButton />
-      </ToolbarGroup>
-      <ToolbarSeparator />
-      <ToolbarGroup>
-        <MarkButton type="bold" />
-        <MarkButton type="italic" />
-        <MarkButton type="strike" />
-        <MarkButton type="code" />
-        <MarkButton type="underline" />
-        {!isMobile ? (
-          <ColorHighlightPopover />
-        ) : (
-          <ColorHighlightPopoverButton onClick={onHighlighterClick} />
-        )}
-        {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
-      </ToolbarGroup>
-      <ToolbarSeparator />
-      <ToolbarGroup>
-        <MarkButton type="superscript" />
-        <MarkButton type="subscript" />
-      </ToolbarGroup>
-      <ToolbarSeparator />
-      <ToolbarGroup>
-        <TextAlignButton align="left" />
-        <TextAlignButton align="center" />
-        <TextAlignButton align="right" />
-        <TextAlignButton align="justify" />
-      </ToolbarGroup>
-      <ToolbarSeparator />
-      <ToolbarGroup>
-        <ImageUploadButton text="Add" />
-      </ToolbarGroup>
-      <Spacer />
-      {isMobile && <ToolbarSeparator />}
-      <ToolbarGroup>
-        <ThemeToggle />
-      </ToolbarGroup>
-    </>
-  )
-}
+}) => (
+  <>
+    <ToolbarGroup>
+      <UndoRedoButton action="undo" />
+      <UndoRedoButton action="redo" />
+    </ToolbarGroup>
+    <ToolbarSeparator />
+    <ToolbarGroup>
+      <HeadingDropdownMenu modal={false} levels={[1, 2, 3, 4]} />
+      <ListDropdownMenu modal={false} types={["bulletList", "orderedList", "taskList"]} />
+      <BlockquoteButton />
+      <CodeBlockButton />
+    </ToolbarGroup>
+    <ToolbarSeparator />
+    <ToolbarGroup>
+      <MarkButton type="bold" />
+      <MarkButton type="italic" />
+      <MarkButton type="strike" />
+      <MarkButton type="code" />
+      <MarkButton type="underline" />
+      {!isMobile ? (
+        <ColorHighlightPopover />
+      ) : (
+        <ColorHighlightPopoverButton onClick={onHighlighterClick} />
+      )}
+      {!isMobile ? <LinkPopover /> : <LinkButton onClick={onLinkClick} />}
+    </ToolbarGroup>
+    <ToolbarSeparator />
+    <ToolbarGroup>
+      <MarkButton type="superscript" />
+      <MarkButton type="subscript" />
+    </ToolbarGroup>
+    <ToolbarSeparator />
+    <ToolbarGroup>
+      <TextAlignButton align="left" />
+      <TextAlignButton align="center" />
+      <TextAlignButton align="right" />
+      <TextAlignButton align="justify" />
+    </ToolbarGroup>
+    <ToolbarSeparator />
+    <ToolbarGroup>
+      <ImageUploadButton text="Add" />
+    </ToolbarGroup>
+    <Spacer />
+  </>
+)
 
 const MobileToolbarContent = ({
   type,
@@ -154,35 +142,41 @@ const MobileToolbarContent = ({
       </Button>
     </ToolbarGroup>
     <ToolbarSeparator />
-    {type === "highlighter" ? (
-      <ColorHighlightPopoverContent />
-    ) : (
-      <LinkContent />
-    )}
+    {type === "highlighter" ? <ColorHighlightPopoverContent /> : <LinkContent />}
   </>
 )
 
 // ── SimpleEditor ──────────────────────────────────────────────────────────────
 
 interface SimpleEditorProps {
-  /** Tiptap JSON content to load (from saved blocks) */
   initialContent?: JSONContent
-  /** Called 1s after the user stops typing, with the latest JSON */
   onUpdate?: (json: JSONContent) => void
-  /** Called when a wiki link node is clicked */
   onNavigate?: (pageId: string) => void
+  title?: string
+  onTitleBlur?: (e: React.FocusEvent<HTMLHeadingElement>) => void
+  editable?: boolean
 }
 
-export function SimpleEditor({ initialContent, onUpdate, onNavigate }: SimpleEditorProps = {}) {
+export function SimpleEditor({
+  initialContent,
+  onUpdate,
+  onNavigate,
+  title,
+  onTitleBlur,
+  editable = true,
+}: SimpleEditorProps = {}) {
   const isMobile = useIsBreakpoint()
   const { height } = useWindowSize()
   const [mobileView, setMobileView] = useState<"main" | "highlighter" | "link">("main")
   const toolbarRef = useRef<HTMLDivElement>(null)
-
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Keep a ref so the onUpdate closure always calls the latest handler
+  const onUpdateRef = useRef(onUpdate)
+  onUpdateRef.current = onUpdate
 
   const editor = useEditor({
     immediatelyRender: false,
+    editable,
     editorProps: {
       attributes: {
         autocomplete: "off",
@@ -202,10 +196,7 @@ export function SimpleEditor({ initialContent, onUpdate, onNavigate }: SimpleEdi
     extensions: [
       StarterKit.configure({
         horizontalRule: false,
-        link: {
-          openOnClick: false,
-          enableClickSelection: true,
-        },
+        link: { openOnClick: false, enableClickSelection: true },
       }),
       HorizontalRule,
       TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -224,7 +215,6 @@ export function SimpleEditor({ initialContent, onUpdate, onNavigate }: SimpleEdi
         upload: handleImageUpload,
         onError: (error) => console.error("Upload failed:", error),
       }),
-      // Wiki link autocomplete
       WikiLink.configure({
         suggestion: {
           ...wikiLinkSuggestion,
@@ -245,23 +235,18 @@ export function SimpleEditor({ initialContent, onUpdate, onNavigate }: SimpleEdi
     ],
     content: initialContent ?? { type: "doc", content: [{ type: "paragraph" }] },
     onUpdate: ({ editor }) => {
-      if (!onUpdate) return
+      if (!onUpdateRef.current) return
       if (saveTimer.current) clearTimeout(saveTimer.current)
-      saveTimer.current = setTimeout(() => {
-        onUpdate(editor.getJSON())
-      }, 1000)
+      saveTimer.current = setTimeout(() => onUpdateRef.current?.(editor.getJSON()), 1000)
     },
   })
 
-  // Reload content when the page changes (e.g. user clicks a different page)
+  // Sync content when active page changes
   useEffect(() => {
     if (!editor || !initialContent) return
-    // Only replace if the page actually changed (avoid cursor jumps on keystroke)
     const current = JSON.stringify(editor.getJSON())
     const incoming = JSON.stringify(initialContent)
-    if (current !== incoming) {
-      editor.commands.setContent(initialContent)
-    }
+    if (current !== incoming) editor.commands.setContent(initialContent)
   }, [JSON.stringify(initialContent)]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const rect = useCursorVisibility({
@@ -270,21 +255,16 @@ export function SimpleEditor({ initialContent, onUpdate, onNavigate }: SimpleEdi
   })
 
   useEffect(() => {
-    if (!isMobile && mobileView !== "main") {
-      setMobileView("main")
-    }
+    if (!isMobile && mobileView !== "main") setMobileView("main")
   }, [isMobile, mobileView])
 
   return (
     <div className="simple-editor-wrapper">
       <EditorContext.Provider value={{ editor }}>
+        {/* Formatting toolbar */}
         <Toolbar
           ref={toolbarRef}
-          style={
-            isMobile
-              ? { bottom: `calc(100% - ${height - rect.y}px)` }
-              : {}
-          }
+          style={isMobile ? { bottom: `calc(100% - ${height - rect.y}px)` } : {}}
         >
           {mobileView === "main" ? (
             <MainToolbarContent
@@ -299,11 +279,32 @@ export function SimpleEditor({ initialContent, onUpdate, onNavigate }: SimpleEdi
             />
           )}
         </Toolbar>
-        <EditorContent
-          editor={editor}
-          role="presentation"
-          className="simple-editor-content"
-        />
+
+        {/* Scrollable content area */}
+        <div className="simple-editor-scroll">
+          <div className="simple-editor-content">
+            {/* Page title */}
+            <h1
+              contentEditable={editable}
+              suppressContentEditableWarning
+              onBlur={editable ? onTitleBlur : undefined}
+              className="simple-editor-page-title"
+              data-placeholder="Untitled"
+            >
+              {title ?? ""}
+            </h1>
+
+            {/* Divider */}
+            <div className="simple-editor-title-divider" aria-hidden="true" />
+
+            {/* Body */}
+            <EditorContent
+              editor={editor}
+              role="presentation"
+              className="simple-editor-body"
+            />
+          </div>
+        </div>
       </EditorContext.Provider>
     </div>
   )

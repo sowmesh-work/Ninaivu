@@ -1,0 +1,35 @@
+import uuid
+import enum
+from datetime import datetime
+from sqlalchemy import Text, DateTime, Enum as SAEnum, func, Boolean
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+from sqlalchemy.dialects.postgresql import UUID
+from app.database import Base
+
+
+class Role(str, enum.Enum):
+    admin = "admin"
+    editor = "editor"
+    contributor = "contributor"
+    viewer = "viewer"
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    email: Mapped[str] = mapped_column(Text, unique=True, nullable=False, index=True)
+    display_name: Mapped[str] = mapped_column(Text, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(Text, nullable=False)
+    role: Mapped[Role] = mapped_column(SAEnum(Role, name="user_role"), nullable=False, default=Role.viewer)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
+
+    # Relationships
+    access_requests: Mapped[list["AccessRequest"]] = relationship(
+        "AccessRequest", foreign_keys="AccessRequest.user_id", back_populates="user", cascade="all, delete-orphan"
+    )
+    edit_requests: Mapped[list["EditRequest"]] = relationship(
+        "EditRequest", foreign_keys="EditRequest.author_id", back_populates="author", cascade="all, delete-orphan"
+    )
