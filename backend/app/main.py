@@ -8,6 +8,7 @@ from app.api.routes.admin import router as admin_router
 from app.api.routes.edit_requests import router as edit_requests_router
 from app.api.routes.access_requests import router as access_requests_router
 from app.database import engine, Base
+from app.config import settings
 import app.models  # noqa: F401 — ensure all models are registered
 
 
@@ -25,9 +26,13 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+allowed_origins = ["http://localhost:3000"]
+if settings.frontend_url and settings.frontend_url not in allowed_origins:
+    allowed_origins.append(settings.frontend_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,   # required for cookies
     allow_methods=["*"],
     allow_headers=["*"],

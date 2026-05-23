@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: ninaivu-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: ./backend
+    plan: free
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false

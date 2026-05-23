@@ -11,6 +11,9 @@ class Settings(BaseSettings):
     jwt_expire_days: int = 7
     cookie_name: str = "ninaivu_token"
 
+    # CORS — comma-separated list of allowed origins
+    frontend_url: str = "http://localhost:3000"
+
     class Config:
         env_file = ".env"
 
