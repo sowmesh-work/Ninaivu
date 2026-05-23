@@ -1,0 +1,37 @@
+version: "3.9"
+
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: ninaivu_db
+    environment:
+      POSTGRES_USER: ninaivu
+      POSTGRES_PASSWORD: ninaivu
+      POSTGRES_DB: ninaivu
+    ports:
+      - "5432:5432"
+    volumes:
+      - ninaivu_pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ninaivu"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build: ./backend
+    container_name: ninaivu_backend
+    environment:
+      DATABASE_URL: postgresql+asyncpg://ninaivu:ninaivu@db:5432/ninaivu
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+volumes:
+  ninaivu_pgdata:
