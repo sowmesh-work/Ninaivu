@@ -7,9 +7,12 @@ from app.config import settings
 # Strip any ssl param from URL — handled via connect_args
 db_url = settings.database_url.split("?")[0]
 
+# Allow SSL without strict cert verification (required for Supabase pooler)
 ssl_context = ssl.create_default_context()
+ssl_context.check_hostname = False
+ssl_context.verify_mode = ssl.CERT_NONE
 
-# NullPool + statement_cache_size=0 is required for pgbouncer transaction mode
+# NullPool + statement_cache_size=0 required for pgbouncer transaction mode
 engine = create_async_engine(
     db_url,
     echo=False,
