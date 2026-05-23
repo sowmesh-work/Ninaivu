@@ -1,98 +1,90 @@
-"use client";
+"use client"
 
-import { useEffect, useCallback, useRef } from "react";
-import useSWR, { mutate } from "swr";
-import { useEditor, EditorContent } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
-import Placeholder from "@tiptap/extension-placeholder";
-import { api } from "@/lib/api";
-import { useStore } from "@/lib/store";
-import type { Page } from "@/types";
+import { useCallback } from "react"
+import useSWR, { mutate } from "swr"
+import type { JSONContent } from "@tiptap/react"
+import { api } from "@/lib/api"
+import { useStore } from "@/lib/store"
+import { SimpleEditor } from "@/components/tiptap-templates/simple/simple-editor"
+import type { Page } from "@/types"
 
-function pageKey(id: string) { return `page:${id}`; }
+function pageKey(id: string) { return `page:${id}` }
 
 export function EditorPanel() {
-  const activePage = useStore((s) => s.activePage);
+  const { activePage, setActivePage } = useStore()
   const { data: page } = useSWR<Page>(
     activePage ? pageKey(activePage) : null,
-    () => api.pages.get(activePage!),
-  );
+    () => api.pages.get(activePage!)
+  )
 
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Build Tiptap JSON doc from stored blocks
+  const initialContent: JSONContent | undefined = page
+    ? {
+        type: "doc",
+        content: page.blocks.length
+          ? page.blocks.map((b) => b.content as JSONContent)
+          : [{ type: "paragraph" }],
+      }
+    : undefined
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit,
-      Placeholder.configure({ placeholder: "Start writing… use [[Page Title]] to link pages." }),
-    ],
-    editorProps: {
-      attributes: { class: "tiptap-editor" },
+  const handleUpdate = useCallback(
+    async (json: JSONContent) => {
+      if (!activePage) return
+      const blocks = (json.content ?? []).map((node, i) => ({
+        type: node.type ?? "paragraph",
+        content: node,
+        block_index: i,
+      }))
+      await api.pages.update(activePage, { blocks })
+      mutate(pageKey(activePage))
+      mutate("pages")
     },
-    onUpdate: ({ editor }) => {
-      if (!activePage) return;
-      // Debounced save — 1 second after last keystroke
-      if (saveTimer.current) clearTimeout(saveTimer.current);
-      saveTimer.current = setTimeout(async () => {
-        const json = editor.getJSON();
-        // Map top-level nodes to blocks
-        const blocks = (json.content ?? []).map((node, i) => ({
-          type: node.type ?? "paragraph",
-          content: node,
-          block_index: i,
-        }));
-        await api.pages.update(activePage, { blocks });
-        mutate(pageKey(activePage));
-        mutate("pages");
-      }, 1000);
-    },
-  });
-
-  // Load page content into editor when page changes
-  useEffect(() => {
-    if (!editor || !page) return;
-    // Reconstruct Tiptap doc from blocks
-    const content = page.blocks.map((b) => b.content);
-    editor.commands.setContent({ type: "doc", content: content.length ? content : [{ type: "paragraph" }] });
-  }, [page?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+    [activePage]
+  )
 
   const handleTitleBlur = useCallback(
     async (e: React.FocusEvent<HTMLHeadingElement>) => {
-      if (!activePage) return;
-      const newTitle = e.currentTarget.textContent?.trim() ?? "Untitled";
-      await api.pages.update(activePage, { title: newTitle });
-      mutate(pageKey(activePage));
-      mutate("pages");
+      if (!activePage) return
+      const newTitle = e.currentTarget.textContent?.trim() ?? "Untitled"
+      await api.pages.update(activePage, { title: newTitle })
+      mutate(pageKey(activePage))
+      mutate("pages")
     },
-    [activePage],
-  );
+    [activePage]
+  )
 
   if (!activePage) {
     return (
       <div className="flex flex-1 items-center justify-center text-muted-foreground text-sm">
         Select a page or create one to start.
       </div>
-    );
+    )
   }
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <div className="flex-1 overflow-y-auto px-12 py-10 max-w-3xl mx-auto w-full">
-        {/* Title */}
+      {/* Page title */}
+      <div className="px-16 pt-12 pb-4 max-w-3xl mx-auto w-full">
         <h1
           contentEditable
           suppressContentEditableWarning
           onBlur={handleTitleBlur}
-          className="text-4xl font-bold outline-none mb-6 empty:before:content-['Untitled'] empty:before:text-muted-foreground"
+          className="text-4xl font-bold outline-none text-foreground empty:before:content-['Untitled'] empty:before:text-muted-foreground/50"
           key={activePage}
         >
           {page?.title ?? ""}
         </h1>
-
-        {/* Editor */}
-        <div className="tiptap-editor min-h-[60vh]">
-          <EditorContent editor={editor} />
-        </div>
       </div>
+
+      {/* Tiptap Simple Editor */}
+      {initialContent && (
+        <SimpleEditor
+          key={activePage}
+          initialContent={initialContent}
+          onUpdate={handleUpdate}
+          onNavigate={setActivePage}
+        />
+      )}
     </div>
-  );
+  )
 }

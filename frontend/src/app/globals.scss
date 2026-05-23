@@ -1,3 +1,6 @@
+@import '../styles/_variables.scss';
+@import '../styles/_keyframe-animations.scss';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -69,3 +72,34 @@
 .tiptap-editor .ProseMirror code { @apply bg-muted px-1 py-0.5 rounded text-sm font-mono; }
 .tiptap-editor .ProseMirror pre  { @apply bg-muted p-4 rounded-lg overflow-x-auto mb-2; }
 .tiptap-editor .ProseMirror blockquote { @apply border-l-4 border-border pl-4 italic text-muted-foreground; }
+
+/* Wiki link inline node */
+.tiptap-editor .ProseMirror .wiki-link {
+  @apply text-primary font-medium cursor-pointer rounded px-0.5;
+  background: hsl(var(--primary) / 0.08);
+  border-bottom: 1px solid hsl(var(--primary) / 0.3);
+  transition: background 0.1s;
+}
+.tiptap-editor .ProseMirror .wiki-link:hover {
+  background: hsl(var(--primary) / 0.15);
+}
+
+/* Wiki link suggestion popup */
+.wiki-link-popup {
+  @apply bg-background border border-border rounded-lg shadow-lg overflow-hidden py-1;
+  min-width: 200px;
+  max-width: 320px;
+}
+.wiki-link-popup-empty {
+  @apply px-3 py-2 text-sm text-muted-foreground;
+}
+.wiki-link-popup-item {
+  @apply flex items-center gap-1 w-full px-3 py-1.5 text-sm text-left transition-colors;
+}
+.wiki-link-popup-item:hover,
+.wiki-link-popup-item.selected {
+  @apply bg-accent text-accent-foreground;
+}
+.wiki-link-popup-brackets {
+  @apply text-muted-foreground text-xs;
+}
