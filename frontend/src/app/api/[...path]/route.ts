@@ -1,44 +1,61 @@
 import { NextRequest, NextResponse } from "next/server"
 
-const RENDER_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
 
-async function handler(
-  req: NextRequest,
-  { params }: { params: Promise<{ path: string[] }> }
-) {
-  const { path } = await params
-  const upstream = `${RENDER_URL}/api/${path.join("/")}${req.nextUrl.search}`
+async function proxy(req: NextRequest, params: { path: string[] }) {
+  const path = params.path.join("/")
+  const upstream = `${API_URL}/api/${path}${req.nextUrl.search}`
 
-  // Forward all headers except host
-  const headers = new Headers()
+  // Build headers — drop host so Render doesn't reject the request
+  const headers: Record<string, string> = {}
   req.headers.forEach((value, key) => {
-    if (key.toLowerCase() !== "host") headers.set(key, value)
+    const lower = key.toLowerCase()
+    if (lower !== "host" && lower !== "connection" && lower !== "transfer-encoding") {
+      headers[key] = value
+    }
   })
 
-  const hasBody = req.method !== "GET" && req.method !== "HEAD"
+  // Read body as text to avoid streaming issues on Vercel
+  let body: string | undefined
+  if (req.method !== "GET" && req.method !== "HEAD") {
+    body = await req.text()
+  }
 
   const res = await fetch(upstream, {
     method: req.method,
     headers,
-    body: hasBody ? req.body : undefined,
-    // @ts-ignore — needed for streaming body in Node.js fetch
-    duplex: hasBody ? "half" : undefined,
+    body,
   })
 
-  // Forward response headers (including Set-Cookie)
+  const text = await res.text()
+
   const responseHeaders = new Headers()
   res.headers.forEach((value, key) => {
-    responseHeaders.set(key, value)
+    const lower = key.toLowerCase()
+    if (lower !== "transfer-encoding" && lower !== "connection") {
+      responseHeaders.set(key, value)
+    }
   })
 
-  return new NextResponse(res.body, {
+  return new NextResponse(text, {
     status: res.status,
     headers: responseHeaders,
   })
 }
 
-export const GET = handler
-export const POST = handler
-export const PUT = handler
-export const PATCH = handler
-export const DELETE = handler
+export async function GET(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return proxy(req, await params)
+}
+export async function POST(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return proxy(req, await params)
+}
+export async function PUT(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return proxy(req, await params)
+}
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return proxy(req, await params)
+}
+export async function DELETE(req: NextRequest, { params }: { params: Promise<{ path: string[] }> }) {
+  return proxy(req, await params)
+}
