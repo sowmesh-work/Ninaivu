@@ -1,12 +1,12 @@
 "use client"
 
 import { createContext, useContext, useEffect, useState, useCallback } from "react"
+import { supabase } from "@/lib/supabase"
 import { api, type UserMe } from "@/lib/api"
 
 interface AuthContextValue {
   user: UserMe | null
   loading: boolean
-  login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   refresh: () => Promise<void>
 }
@@ -17,7 +17,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserMe | null>(null)
   const [loading, setLoading] = useState(true)
 
-  const refresh = useCallback(async () => {
+  const loadUser = useCallback(async (hasSession: boolean) => {
+    if (!hasSession) {
+      setUser(null)
+      return
+    }
     try {
       const me = await api.auth.me()
       setUser(me)
@@ -27,21 +31,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   useEffect(() => {
-    refresh().finally(() => setLoading(false))
-  }, [refresh])
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      loadUser(!!session).finally(() => setLoading(false))
+    })
 
-  const login = useCallback(async (email: string, password: string) => {
-    const me = await api.auth.login(email, password)
-    setUser(me)
-  }, [])
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      loadUser(!!session)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [loadUser])
 
   const logout = useCallback(async () => {
-    await api.auth.logout()
+    await supabase.auth.signOut()
     setUser(null)
   }, [])
 
+  const refresh = useCallback(async () => {
+    const { data: { session } } = await supabase.auth.getSession()
+    await loadUser(!!session)
+  }, [loadUser])
+
   return (
-    <AuthContext.Provider value={{ user, loading, login, logout, refresh }}>
+    <AuthContext.Provider value={{ user, loading, logout, refresh }}>
       {children}
     </AuthContext.Provider>
   )
@@ -53,7 +65,6 @@ export function useAuth() {
   return ctx
 }
 
-// Convenience helpers
 export function useIsAdmin() {
   const { user } = useAuth()
   return user?.role === "admin"
